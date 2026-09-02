@@ -26,9 +26,21 @@ class UserModel {
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
-    // Cursus users list — pick the first cursus (or main one) for level/skills
     final cursusUsers = json['cursus_users'] as List<dynamic>? ?? [];
-    final mainCursus = cursusUsers.isNotEmpty ? cursusUsers.last : null;
+
+    // Prefer the main cursus (kind == "main", e.g. "42cursus").
+    // Fall back to the last entry if no main cursus is found.
+    Map<String, dynamic>? mainCursus;
+    for (final c in cursusUsers) {
+      final cursus = c as Map<String, dynamic>;
+      if (cursus['cursus']?['kind'] == 'main') {
+        mainCursus = cursus;
+        break;
+      }
+    }
+    mainCursus ??= cursusUsers.isNotEmpty
+        ? cursusUsers.last as Map<String, dynamic>
+        : null;
 
     final skillsJson = mainCursus?['skills'] as List<dynamic>? ?? [];
     final skills = skillsJson
@@ -40,13 +52,15 @@ class UserModel {
         .map((p) => ProjectModel.fromJson(p as Map<String, dynamic>))
         .toList();
 
+    final phoneRaw = json['phone'] as String?;
+
     return UserModel(
       login: json['login'] ?? '',
       email: json['email'],
-      phone: json['phone'],
+      phone: (phoneRaw == null || phoneRaw == 'hidden') ? null : phoneRaw,
       displayName: json['displayname'] ?? json['login'] ?? '',
       imageUrl: json['image']?['link'],
-      level: (mainCursus?['level'] as num?)?.round() ?? 0,
+      level: ((mainCursus?['level'] as num?) ?? 0).round(),
       location: json['location'],
       wallet: json['wallet'] ?? 0,
       correctionPoints: json['correction_point'] ?? 0,
